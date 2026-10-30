@@ -24,45 +24,8 @@ function Assert-UvHttps([string]$Address) {
 function Receive-UvFile([string]$Address,[string]$Path) {
     $uri=Assert-UvHttps $Address
     Write-Host ('Downloading from '+$uri.DnsSafeHost+' ...')
-    # Do not send GitHub credentials to mirrors or generic HTTP endpoints.
+    # Public downloads never use account credentials.
     Invoke-WebRequest -UseBasicParsing -Uri $uri.AbsoluteUri -OutFile $Path -TimeoutSec 60 -MaximumRedirection 5 | Out-Null
-}
-function Test-UvGitHubAssetHost([Uri]$Uri) {
-    $hostName=$Uri.DnsSafeHost.ToLowerInvariant()
-    return ($Uri.Scheme -eq 'https' -and -not $Uri.UserInfo -and
-        ($hostName -eq 'github.com' -or $hostName -eq 'githubusercontent.com' -or $hostName.EndsWith('.githubusercontent.com')))
-}
-function Receive-UvGitHubAsset([string]$Repository,[string]$Tag,[string]$Name,[string]$Path,[string]$Token) {
-    if($Repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'){throw 'Invalid repository name.'}
-    $headers=@{Authorization=('Bearer '+$Token);Accept='application/vnd.github+json';'User-Agent'='UV1780-Native-Installer'}
-    $response=$null
-    try {
-        $release=Invoke-RestMethod -Uri ('https://api.github.com/repos/'+$Repository+'/releases/tags/'+[Uri]::EscapeDataString($Tag)) -Headers $headers -TimeoutSec 30
-        $assets=@($release.assets|Where-Object {$_.name -eq $Name})
-        if($assets.Count -ne 1){throw 'The requested release does not have exactly one matching installer.'}
-        $apiUri=Assert-UvHttps ([string]$assets[0].url)
-        if($apiUri.DnsSafeHost -ne 'api.github.com'){throw 'Unexpected GitHub asset API host.'}
-        $request=[Net.HttpWebRequest]::Create($apiUri)
-        $request.Method='GET';$request.Accept='application/octet-stream';$request.UserAgent='UV1780-Native-Installer'
-        $request.Headers['Authorization']='Bearer '+$Token
-        $request.AllowAutoRedirect=$false;$request.Timeout=60000;$request.ReadWriteTimeout=60000
-        $response=$request.GetResponse()
-        $status=[int]$response.StatusCode
-        if($status -in @(301,302,303,307,308)) {
-            $location=Assert-UvHttps ([string]$response.Headers['Location'])
-            if(-not(Test-UvGitHubAssetHost $location)){throw 'GitHub redirected the asset to an unexpected host.'}
-            $response.Close();$response=$null
-            # Follow the signed asset URL WITHOUT an Authorization header.
-            Receive-UvFile $location.AbsoluteUri $Path
-        } elseif($status -eq 200) {
-            $inputStream=$response.GetResponseStream()
-            $outputStream=[IO.File]::Create($Path)
-            try {$inputStream.CopyTo($outputStream)}finally{$outputStream.Dispose();$inputStream.Dispose()}
-        } else {throw ('Unexpected GitHub download status: '+$status)}
-    } finally {
-        if($response){$response.Close()}
-        $headers.Clear();$Token=$null
-    }
 }
 function Invoke-UvInstall {
     $version='2.70.2'
@@ -91,6 +54,7 @@ function Invoke-UvInstall {
     $sources=@()
     if($InstallerUrl){$sources+=$InstallerUrl}
     $sources+=@($MirrorUrls|Where-Object {$_})
+    $sources+=('https://github.com/'+$repository+'/releases/download/'+$tag+'/'+$fileName)
     try {
         if(-not $verified) {
             foreach($source in $sources) {
@@ -103,20 +67,7 @@ function Invoke-UvInstall {
             }
         }
         if(-not $verified) {
-            $token=$env:UV1780_GITHUB_TOKEN
-            if(-not $token) {
-                if($NoPrompt){throw 'All configured sources failed. Set UV1780_INSTALLER_URL or UV1780_GITHUB_TOKEN, or provide -LocalInstaller.'}
-                Write-Host 'The complete package is private because it contains the original software registration.'
-                Write-Host 'Enter a GitHub token with read access to C12isme945/uv1780-packages. Input is hidden.'
-                $secure=Read-Host 'GitHub token' -AsSecureString
-                $pointer=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-                try {$token=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)}finally{[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer);$secure.Dispose()}
-                if(-not $token){throw 'No token supplied. Use an authorized HTTPS mirror or a local installer instead.'}
-            }
-            try {Receive-UvGitHubAsset $repository $tag $fileName $temporary $token}finally{$token=$null}
-            Assert-UvInstaller $temporary $expectedSha256 $expectedSize
-            Move-Item -LiteralPath $temporary -Destination $destination -Force
-            $verified=$true
+            throw 'All public download sources failed. Set UV1780_INSTALLER_URL, provide -MirrorUrls, or use -LocalInstaller. No GitHub login is required.'
         }
     }finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}
     Assert-UvInstaller $destination $expectedSha256 $expectedSize

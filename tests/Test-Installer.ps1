@@ -14,9 +14,8 @@ foreach($address in @('http://example.com/a.exe','file:///C:/a.exe','https://use
     Assert-Test $rejected ('Reject non-HTTPS or credential-bearing URL: '+$address)
 }
 Assert-Test ((Assert-UvHttps 'https://example.com/a.exe?signature=abc').Scheme -eq 'https') 'Accept signed HTTPS mirror URL'
-Assert-Test (Test-UvGitHubAssetHost ([Uri]'https://release-assets.githubusercontent.com/a')) 'Accept official release asset host'
-Assert-Test (-not(Test-UvGitHubAssetHost ([Uri]'https://githubusercontent.com.evil.example/a'))) 'Reject lookalike GitHub host'
-Assert-Test (-not(Test-UvGitHubAssetHost ([Uri]'http://release-assets.githubusercontent.com/a'))) 'Reject HTTP redirect'
+Assert-Test (@($ast.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -eq 'Read-Host'},$true)).Count -eq 0) 'Public installation never prompts for credentials'
+Assert-Test (-not $ast.Extent.Text.Contains('UV1780_GITHUB_TOKEN')) 'Public installation does not read GitHub tokens'
 $scratch=Join-Path ([IO.Path]::GetTempPath()) ('uv1780-test-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $scratch|Out-Null
 try {
