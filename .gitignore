@@ -1,0 +1,12 @@
+*.exe
+*.dll
+*.ocx
+*.msi
+*.mdb
+*.reg
+*.hive
+*.part
+*.log
+test-cache*/
+test-results.json
+.env*
