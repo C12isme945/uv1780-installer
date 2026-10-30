@@ -7,12 +7,12 @@
 在 **Windows PowerShell** 或 Windows 终端中运行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://cdn.jsdelivr.net/gh/C12isme945/uv1780-installer@v2.70.2/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://cdn.jsdelivr.net/gh/C12isme945/uv1780-installer@v2.70.2.1/install.ps1 | iex"
 ```
 
 该地址只提供公开的安装脚本。完整软件包保存在 [私有 Releases](https://github.com/C12isme945/uv1780-packages/releases/tag/v2.70.2)，因为其中含有原软件登记资料。第一次从 GitHub 下载时，脚本会隐藏输入地询问有该私有仓库读取权限的 GitHub token；不会要求目标电脑安装 GitHub CLI。细粒度 token 仅需允许此仓库的 Contents 读取。仓库管理员须先授予使用者仓库访问权限。
 
-如果 jsDelivr 不可达，可从 [GitHub 源码](https://github.com/C12isme945/uv1780-installer/blob/v2.70.2/install.ps1)下载脚本后运行：
+如果 jsDelivr 不可达，可从 [GitHub 源码](https://github.com/C12isme945/uv1780-installer/blob/v2.70.2.1/install.ps1)下载脚本后运行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1

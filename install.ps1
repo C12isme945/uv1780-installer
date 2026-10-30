@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$InstallerUrl=$env:UV1780_INSTALLER_URL,
     [string[]]$MirrorUrls=@(),
